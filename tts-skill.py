@@ -34,13 +34,15 @@ class TTSSkill:
     def generate_output_filename(self, text, extension='wav'):
         """生成输出文件名：日期+文本前6个字"""
         import time
-        # 获取当前时间
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        timestamp = time.strftime("%Y%m%d")
 
         # 获取输入文本的前6个字
         prefix = text[:6] if len(text) >= 6 else text
-        # 清理文件名，移除不合法的字符
-        prefix = "".join(c for c in prefix if c.isalnum() or c in "_-")
+        prefix = prefix.strip().replace("\n", " ").replace("\r", " ")
+        prefix = "_".join(prefix.split())
+        invalid_chars = '<>:"/\\|?*'
+        prefix = "".join(c for c in prefix if c not in invalid_chars)
+        prefix = prefix.strip(" ._") or "tts"
 
         return f"{timestamp}_{prefix}.{extension}"
 
@@ -61,6 +63,10 @@ TTS-Skill - 多引擎文本转语音技能
     /tts-skill qwen3-tts "胜利在呼唤" --voice 赵信
     /tts-skill edge-tts "你好世界" --voice xiaoxiao
     /tts-skill openai-tts "Hello World" --voice alloy
+    /tts-skill qwen3-tts --text-file "input/text.txt" --voice 寒冰射手
+
+命令行示例 (Windows):
+    python tts-skill.py qwen3-tts --text-file "F:\\Code\\MySkills\\tts-skill\\input\\text.txt" --voice 寒冰射手
 
 常用音色:
     赵信, 寒冰射手, Lei, 布里茨 (本地音色)
@@ -178,6 +184,7 @@ def main():
     parser = argparse.ArgumentParser(description='TTS-Skill - 多引擎文本转语音技能', add_help=False)
     parser.add_argument('engine', nargs='?', help='TTS引擎 (qwen3-tts, edge-tts, openai-tts)')
     parser.add_argument('text', nargs='*', help='要转换的文本内容')
+    parser.add_argument('--text-file', '-f', help='从文本文件读取内容')
     parser.add_argument('--voice', '-v', help='音色选择')
     parser.add_argument('--output', '-o', help='输出文件路径')
     parser.add_argument('--list-engines', action='store_true', help='列出所有引擎')
@@ -219,17 +226,36 @@ def main():
         print("\n使用 --help 查看帮助信息")
         return
 
+    input_text = None
+    if args.text_file:
+        text_path = Path(args.text_file).expanduser()
+        if not text_path.is_absolute():
+            text_path = (Path.cwd() / text_path).resolve()
+
+        if not text_path.exists():
+            print("ERROR: 找不到输入文本文件")
+            print(f"  传入路径: {args.text_file}")
+            print(f"  解析路径: {text_path}")
+            print('示例: python tts-skill.py qwen3-tts --text-file "F:\\Code\\MySkills\\tts-skill\\input\\text.txt" --voice 寒冰射手')
+            return
+
+        try:
+            input_text = text_path.read_text(encoding='utf-8-sig').strip()
+        except UnicodeDecodeError:
+            input_text = text_path.read_text(encoding='gbk', errors='replace').strip()
+    elif args.text:
+        input_text = ' '.join(args.text).strip()
+
     # 构建引擎参数
     engine_args = []
 
     # 添加文本内容
-    if args.text:
-        text = ' '.join(args.text)
-        engine_args.append(text)
+    if input_text:
+        engine_args.append(input_text)
 
         # 如果没有指定输出文件，生成默认文件名
         if not args.output:
-            default_filename = skill.generate_output_filename(text)
+            default_filename = skill.generate_output_filename(input_text)
             default_output_path = skill.output_dir / default_filename
             engine_args.extend(['--output', str(default_output_path)])
             print(f"📁 默认输出路径: {default_output_path}")

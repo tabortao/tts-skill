@@ -40,6 +40,9 @@ def find_voice_reference(voice_keyword, language='zh'):
     """根据关键词在assets目录中查找匹配的参考音频"""
     assets_dir = Path(__file__).parent.parent / 'assets'
 
+    if not assets_dir.exists():
+        return None, None
+
     # 支持的音频格式
     audio_extensions = ['.mp3', '.wav', '.m4a', '.flac']
 
@@ -54,11 +57,12 @@ def find_voice_reference(voice_keyword, language='zh'):
                     return str(audio_file), str(text_file)
 
     # 如果没有找到匹配的，返回默认的赵信音色
-    default_audio = assets_dir / '赵信.mp3'
     default_text = assets_dir / '赵信.txt'
-
-    if default_audio.exists() and default_text.exists():
-        return str(default_audio), str(default_text)
+    if default_text.exists():
+        for ext in audio_extensions:
+            default_audio = assets_dir / f'赵信{ext}'
+            if default_audio.exists():
+                return str(default_audio), str(default_text)
 
     # 如果连默认文件都不存在，返回第一个找到的音频文件
     for audio_file in assets_dir.iterdir():
@@ -321,8 +325,17 @@ def main():
     if args.list_voices:
         assets_dir = Path(__file__).parent.parent / 'assets'
         print("可用的音色:")
-        for audio_file in assets_dir.glob('*.mp3'):
-            print(f"  - {audio_file.stem}")
+        if not assets_dir.exists():
+            return
+
+        audio_extensions = {'.mp3', '.wav', '.m4a', '.flac'}
+        stems = set()
+        for audio_file in assets_dir.iterdir():
+            if audio_file.suffix.lower() in audio_extensions:
+                stems.add(audio_file.stem)
+
+        for stem in sorted(stems):
+            print(f"  - {stem}")
         return
 
     # 获取文本内容

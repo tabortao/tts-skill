@@ -97,6 +97,15 @@ class EdgeTTSClient:
 
     def generate_speech(self, text, voice=None, speed=None, pitch=None, style=None, output_path=None):
         """生成语音"""
+        def sanitize_filename_part(value: str) -> str:
+            if not value:
+                return "tts"
+            value = value.strip().replace("\n", " ").replace("\r", " ")
+            value = re.sub(r"\s+", "_", value)
+            value = re.sub(r'[<>:"/\\\\|?*]', "", value)
+            value = value.strip(" ._")
+            return value or "tts"
+
         # 处理参数
         if voice:
             selected_voice = self.find_voice_by_keyword(voice)
@@ -134,11 +143,10 @@ class EdgeTTSClient:
                 if not output_path:
                     # 生成默认文件名：日期+文本前6个字
                     import time
-                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    date_str = time.strftime("%Y%m%d")
                     prefix = text[:6] if len(text) >= 6 else text
-                    # 清理文件名，移除不合法的字符
-                    prefix = "".join(c for c in prefix if c.isalnum() or c in "_-")
-                    filename = f"{timestamp}_{prefix}.mp3"
+                    prefix = sanitize_filename_part(prefix)
+                    filename = f"{date_str}_{prefix}.mp3"
 
                     # 默认输出到上级目录的output文件夹
                     output_dir = Path(__file__).parent.parent / 'output'
