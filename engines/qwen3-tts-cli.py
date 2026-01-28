@@ -14,6 +14,8 @@ import time
 import threading
 from pathlib import Path
 import re
+import configparser
+from typing import Optional
 
 # Set UTF-8 encoding for console output
 if sys.stdout.encoding != 'utf-8':
@@ -36,10 +38,45 @@ def detect_language(text):
     else:
         return 'en'
 
-def find_voice_reference(voice_keyword, language='zh'):
-    """根据关键词在assets目录中查找匹配的参考音频"""
-    assets_dir = Path(__file__).parent.parent / 'assets'
+def load_qwen3_config(config_file: Optional[str] = None) -> dict:
+    config = configparser.ConfigParser()
 
+    engines_dir = Path(__file__).resolve().parent
+    config_paths = [
+        config_file,
+        str(engines_dir / 'qwen3-tts.config'),
+        str(engines_dir.parent / 'qwen3-tts.config'),
+        './qwen3-tts.config',
+    ]
+
+    for path in config_paths:
+        if path and os.path.exists(path):
+            config.read(path, encoding='utf-8')
+            break
+
+    section = config['Qwen3-TTS'] if 'Qwen3-TTS' in config else config['DEFAULT']
+
+    model_dir_raw = section.get('model_dir', './Qwen3-TTS-12Hz-0.6B-Base')
+    assets_dir_raw = section.get('assets_dir', '../assets')
+
+    model_dir_path = Path(model_dir_raw)
+    if not model_dir_path.is_absolute():
+        model_dir_path = (engines_dir / model_dir_path).resolve()
+
+    assets_dir_path = Path(assets_dir_raw)
+    if not assets_dir_path.is_absolute():
+        assets_dir_path = (engines_dir / assets_dir_path).resolve()
+
+    return {
+        'model_dir': str(model_dir_path),
+        'assets_dir': str(assets_dir_path),
+        'default_voice': section.get('default_voice', '赵信'),
+        'output_format': section.get('output_format', 'wav'),
+    }
+
+
+def find_voice_reference(voice_keyword, assets_dir: Path):
+    """根据关键词在assets目录中查找匹配的参考音频"""
     if not assets_dir.exists():
         return None, None
 
@@ -125,11 +162,12 @@ def install_qwen3_environment():
         print(f"❌ 环境配置失败: {e}")
         return False
 
-def generate_speech_qwen3(reference_audio, reference_text, text, output_path):
+def generate_speech_qwen3(reference_audio, reference_text, text, output_path, model_dir: str):
     """使用Qwen3-TTS生成语音"""
     try:
         # 创建临时Python脚本文件
-        temp_script = Path(__file__).parent / 'temp_qwen3_generate.py'
+        engines_dir = Path(__file__).resolve().parent
+        temp_script = engines_dir / 'temp_qwen3_generate.py'
 
         script_content = '''import sys
 import os
@@ -167,24 +205,28 @@ try:
 
     # 下载模型（如果未下载）
     print("\\n📥 下载/加载 Qwen3-TTS 模型...")
-    local_model_dir = Path('./Qwen3-TTS-12Hz-0.6B-Base')
-    if local_model_dir.exists():
+    configured_model_dir = Path(''' + repr(model_dir) + ''')
+    if not configured_model_dir.is_absolute():
+        configured_model_dir = (Path(__file__).resolve().parent / configured_model_dir).resolve()
+
+    if configured_model_dir.exists():
         try:
-            any_file = any(local_model_dir.rglob('*'))
+            any_file = any(configured_model_dir.rglob('*'))
         except Exception:
             any_file = False
+
         if any_file:
-            print("✅ 检测到本地模型目录，跳过下载: " + str(local_model_dir))
-            model_dir = str(local_model_dir)
+            print("✅ 检测到本地模型目录，跳过下载: " + str(configured_model_dir))
+            model_dir = str(configured_model_dir)
         else:
-            print("⚠️  本地模型目录为空，将尝试下载: " + str(local_model_dir))
-            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(local_model_dir))
+            print("⚠️  本地模型目录为空，将尝试下载: " + str(configured_model_dir))
+            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(configured_model_dir))
     else:
         try:
-            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(local_model_dir))
+            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(configured_model_dir))
         except Exception as e:
             print("模型下载警告: " + str(e))
-            model_dir = str(local_model_dir)
+            model_dir = str(configured_model_dir)
 
     # 初始化模型
     print("🔧 初始化模型...")
@@ -303,7 +345,7 @@ except Exception as e:
         env['PYTHONUNBUFFERED'] = '1'
 
         cmd = ['micromamba', 'run', '-n', 'qwen3-tts', 'python', str(temp_script)]
-        result = subprocess.run(cmd, env=env, cwd=os.getcwd())
+        result = subprocess.run(cmd, env=env, cwd=str(engines_dir))
         return_code = result.returncode
 
         # 清理临时文件
@@ -323,20 +365,25 @@ except Exception as e:
 def main():
     parser = argparse.ArgumentParser(description='Qwen3-TTS CLI - 千问TTS语音生成工具')
     parser.add_argument('text', nargs='?', help='要转换为语音的文本内容')
-    parser.add_argument('--voice', '-v', default='赵信', help='音色关键词（默认：赵信）')
+    parser.add_argument('--voice', '-v', help='音色关键词（默认使用配置文件的 default_voice）')
     parser.add_argument('--output', '-o', help='输出文件路径')
     parser.add_argument('--text-file', '-f', help='从文本文件读取内容')
     parser.add_argument('--install', action='store_true', help='安装Qwen3-TTS环境')
     parser.add_argument('--list-voices', action='store_true', help='列出可用的音色')
+    parser.add_argument('--config', help='配置文件路径（默认读取 engines/qwen3-tts.config）')
+    parser.add_argument('--model-dir', help='模型目录路径（优先级高于配置文件）')
 
     args = parser.parse_args()
+    config = load_qwen3_config(args.config)
+    model_dir = args.model_dir or config['model_dir']
+    assets_dir = Path(config['assets_dir'])
+    voice_keyword = args.voice or config['default_voice']
 
     if args.install:
         install_qwen3_environment()
         return
 
     if args.list_voices:
-        assets_dir = Path(__file__).parent.parent / 'assets'
         print("可用的音色:")
         if not assets_dir.exists():
             return
@@ -368,11 +415,10 @@ def main():
         return
 
     # 检测语言并查找音色
-    language = detect_language(text)
-    reference_audio, reference_text = find_voice_reference(args.voice, language)
+    reference_audio, reference_text = find_voice_reference(voice_keyword, assets_dir)
 
     if not reference_audio or not reference_text:
-        print(f"ERROR: 找不到匹配的音色文件: {args.voice}")
+        print(f"ERROR: 找不到匹配的音色文件: {voice_keyword}")
         return
 
     print(f"使用音色: {Path(reference_audio).stem}")
@@ -402,7 +448,7 @@ def main():
             return
 
     # 生成语音
-    success, result = generate_speech_qwen3(reference_audio, reference_text, text, output_path)
+    success, result = generate_speech_qwen3(reference_audio, reference_text, text, output_path, model_dir=model_dir)
 
     if success:
         print(f"SUCCESS: 语音生成成功: {result}")
