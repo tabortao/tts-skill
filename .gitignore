@@ -64,6 +64,7 @@ Thumbs.db
 .cache/
 *.log
 *.bak
+engines/temp_qwen3_generate.py
 
 # Output directories
 output/

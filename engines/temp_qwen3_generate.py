@@ -30,15 +30,28 @@ try:
 
     print("⏰ 开始时间: " + time.strftime('%Y-%m-%d %H:%M:%S'))
     print("📝 输入文本: 你好，我是中国人。 (" + str(len('你好，我是中国人。')) + " 字)")
-    print("🎵 参考音频: " + os.path.basename('F:\\Code\\MySkills\\tts-skill\\assets\\寒冰射手.mp3') + "...")
+    print("🎵 参考音频: " + os.path.basename('F:\\Code\\MySkills\\tts-skill\\assets\\赵信.mp3') + "...")
 
     # 下载模型（如果未下载）
     print("\n📥 下载/加载 Qwen3-TTS 模型...")
-    try:
-        model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir='./Qwen3-TTS-12Hz-0.6B-Base')
-    except Exception as e:
-        print("模型下载警告: " + str(e))
-        model_dir = './Qwen3-TTS-12Hz-0.6B-Base'
+    local_model_dir = Path('./Qwen3-TTS-12Hz-0.6B-Base')
+    if local_model_dir.exists():
+        try:
+            any_file = any(local_model_dir.rglob('*'))
+        except Exception:
+            any_file = False
+        if any_file:
+            print("✅ 检测到本地模型目录，跳过下载: " + str(local_model_dir))
+            model_dir = str(local_model_dir)
+        else:
+            print("⚠️  本地模型目录为空，将尝试下载: " + str(local_model_dir))
+            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(local_model_dir))
+    else:
+        try:
+            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(local_model_dir))
+        except Exception as e:
+            print("模型下载警告: " + str(e))
+            model_dir = str(local_model_dir)
 
     # 初始化模型
     print("🔧 初始化模型...")
@@ -46,7 +59,7 @@ try:
 
     # 读取参考文本
     print("📖 读取参考文本...")
-    ref_text_path = 'F:\\Code\\MySkills\\tts-skill\\assets\\寒冰射手.txt'
+    ref_text_path = 'F:\\Code\\MySkills\\tts-skill\\assets\\赵信.txt'
     with open(ref_text_path, 'r', encoding='utf-8') as f:
         ref_text = f.read().strip()
 
@@ -86,7 +99,7 @@ try:
     progress_thread.start()
 
     # 生成语音
-    ref_audio_path = 'F:\\Code\\MySkills\\tts-skill\\assets\\寒冰射手.mp3'
+    ref_audio_path = 'F:\\Code\\MySkills\\tts-skill\\assets\\赵信.mp3'
     result = tts.generate_voice_clone(
         text='你好，我是中国人。',
         ref_audio=ref_audio_path,
@@ -111,7 +124,7 @@ try:
     generation_time = generation_end - generation_start
 
     # 保存结果
-    output_path = 'F:\\Code\\MySkills\\tts-skill\\output\\20260128_180805_你好，我是中.wav'
+    output_path = 'F:\\Code\\MySkills\\tts-skill\\output\\20260128_184334_你好，我是中.wav'
     sf.write(str(output_path), wavs[0], sample_rate)
 
     # 计算统计信息

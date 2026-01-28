@@ -99,21 +99,30 @@ speed = 1.0
 
 ```
 tts-skill/
-├── engines/                    # TTS引擎实现
-│   ├── qwen3-tts-cli.py       # 千问TTS引擎
-│   ├── edge-tts-cli.py        # VoiceCraft引擎
-│   ├── openai-tts-cli.py      # OpenAI TTS引擎
-│   ├── qwen3-tts.config       # Qwen3-TTS配置
-│   ├── edge-tts.config        # Edge-TTS配置
-│   └── openai-tts.config      # OpenAI TTS配置
-├── assets/                     # 参考音色文件
-│   ├── 赵信.mp3              # 赵信角色音频
-│   ├── 赵信.txt              # 赵信参考文本
-│   ├── 寒冰射手.mp3          # 艾希角色音频
-│   └── 寒冰射手.txt          # 艾希参考文本
-├── output/                     # 输出目录
-├── SKILL.md                   # 技能详细说明
-└── README.md                  # 项目说明
+├── .trae/
+│   └── plans/                 # 任务计划（Trae）
+├── assets/                    # 参考音色文本（音频文件通常被 .gitignore 忽略）
+│   ├── Lei.txt
+│   ├── 寒冰射手.txt
+│   ├── 布里茨.txt
+│   └── 赵信.txt
+├── engines/                   # 引擎脚本与配置
+│   ├── edge-tts-cli.py
+│   ├── edge-tts.config
+│   ├── openai-tts-cli.py
+│   ├── openai-tts.config
+│   ├── qwen3-tts-cli.py
+│   └── qwen3-tts.config
+├── input/
+│   └── text.txt               # 示例输入
+├── output/                    # 默认输出目录
+├── tts-skill.py               # 主入口
+├── INSTALL.md                 # 英文安装指南
+├── INSTALL.zh-CN.md           # 中文安装指南
+├── README.md                  # 英文说明
+├── README.zh-CN.md            # 中文说明
+├── SKILL.md                   # 英文技能说明
+└── SKILL.zh-CN.md             # 中文技能说明
 ```
 
 ## 🎯 详细功能
@@ -269,4 +278,3 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 如果这个项目对你有帮助，请给个⭐️支持！
 
 [![Star History Chart](https://api.star-history.com/svg?repos=your-repo/tts-skill&type=Date)](https://star-history.com/#your-repo/tts-skill&Date)
-

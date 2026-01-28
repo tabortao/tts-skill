@@ -24,19 +24,24 @@ description: 多引擎文本转语音技能，支持Qwen3-TTS本地音色克隆�
 
 ```
 tts-skill/
-├── engines/                    # TTS引擎目录
-│   ├── qwen3-tts-cli.py       # 千问TTS引擎
-│   ├── edge-tts-cli.py        # VoiceCraft引擎
-│   ├── openai-tts-cli.py      # OpenAI TTS引擎
-│   └── edge-tts.config        # Edge-TTS配置文件
-├── assets/                     # 参考音色目录
-│   ├── zh/                    # 中文音色
-│   │   ├── 赵信.mp3
-│   │   ├── 赵信.txt
-│   │   ├── 寒冰射手.mp3
-│   │   └── 寒冰射手.txt
-│   └── en/                    # 英文音色
-└── SKILL.md                   # 技能说明文档
+├── assets/                    # 参考音色文本（音频文件通常被 .gitignore 忽略）
+│   ├── Lei.txt
+│   ├── 寒冰射手.txt
+│   ├── 布里茨.txt
+│   └── 赵信.txt
+├── engines/                   # 引擎脚本与配置
+│   ├── edge-tts-cli.py
+│   ├── edge-tts.config
+│   ├── openai-tts-cli.py
+│   ├── openai-tts.config
+│   ├── qwen3-tts-cli.py
+│   └── qwen3-tts.config
+├── input/
+│   └── text.txt               # 示例输入
+├── output/                    # 默认输出目录
+├── tts-skill.py               # 主入口
+├── SKILL.md                   # 英文技能说明
+└── SKILL.zh-CN.md             # 中文技能说明
 ```
 
 ## 🎯 使用方法
@@ -45,6 +50,31 @@ tts-skill/
 
 ```
 /tts-skill [引擎] [文本内容] --voice [音色关键词] [其他参数]
+```
+
+### 📄 从文件读取文本（--text-file / -f）
+
+当文本较长时，推荐把内容放到文件里，然后通过 `--text-file` 读取。
+
+**主入口用法（推荐）：**
+
+```bash
+python tts-skill.py qwen3-tts --text-file "input\\text.txt" --voice 寒冰射手
+```
+
+**说明：**
+
+- `--text-file` 支持相对路径与绝对路径；相对路径以你执行命令时的当前目录为基准
+- 如果同时传了「位置参数文本」和 `--text-file`，会优先使用 `--text-file` 的内容
+- 建议文本文件使用 UTF-8 编码（支持 UTF-8 BOM）；遇到编码异常会自动尝试 GBK
+- Windows 路径建议用双引号包住，并使用 `\\` 或直接用 `\`（PowerShell 下也可正常工作）
+
+**引擎脚本直调用法（可选）：**
+
+```bash
+python engines/qwen3-tts-cli.py --text-file "input\\text.txt" --voice 寒冰射手
+python engines/edge-tts-cli.py --text-file "input\\text.txt" --voice xiaoxiao
+python engines/openai-tts-cli.py --text-file "input\\text.txt" --voice alloy
 ```
 
 ### 🎭 引擎选择
@@ -203,4 +233,3 @@ A: 确认API密钥正确，检查账户余额和权限设置。
 ---
 
 **🎙️ TTS-Skill** - 让文字拥有声音，让创意更有温度！
-

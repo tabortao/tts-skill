@@ -167,11 +167,24 @@ try:
 
     # 下载模型（如果未下载）
     print("\\n📥 下载/加载 Qwen3-TTS 模型...")
-    try:
-        model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir='./Qwen3-TTS-12Hz-0.6B-Base')
-    except Exception as e:
-        print("模型下载警告: " + str(e))
-        model_dir = './Qwen3-TTS-12Hz-0.6B-Base'
+    local_model_dir = Path('./Qwen3-TTS-12Hz-0.6B-Base')
+    if local_model_dir.exists():
+        try:
+            any_file = any(local_model_dir.rglob('*'))
+        except Exception:
+            any_file = False
+        if any_file:
+            print("✅ 检测到本地模型目录，跳过下载: " + str(local_model_dir))
+            model_dir = str(local_model_dir)
+        else:
+            print("⚠️  本地模型目录为空，将尝试下载: " + str(local_model_dir))
+            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(local_model_dir))
+    else:
+        try:
+            model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(local_model_dir))
+        except Exception as e:
+            print("模型下载警告: " + str(e))
+            model_dir = str(local_model_dir)
 
     # 初始化模型
     print("🔧 初始化模型...")
