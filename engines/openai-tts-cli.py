@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+OpenAI-TTS CLI Engine
+对接OpenAI TTS API，支持高质量语音生成
+"""
+
+import os
+import sys
+import argparse
+import requests
+import json
+from pathlib import Path
+import configparser
+import time
+
+# Set UTF-8 encoding for console output
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr.reconfigure(encoding='utf-8')
+
+class OpenAITTSClient:
+    def __init__(self, config_file=None):
+        self.config = configparser.ConfigParser()
+
+        # 查找配置文件
+        config_paths = [
+            config_file,
+            './openai-tts.config',
+            str(Path(__file__).parent / 'openai-tts.config'),
+            str(Path(__file__).parent.parent / 'openai-tts.config')
+        ]
+
+        config_loaded = False
+        for path in config_paths:
+            if path and os.path.exists(path):
+                self.config.read(path, encoding='utf-8')
+                config_loaded = True
+                break
+
+        if not config_loaded:
+            print("⚠️  未找到配置文件，使用默认配置")
+            # 默认配置
+            self.config['OpenAI'] = {
+                'api_key': '',
+                'base_url': 'https://api.openai.com/v1',
+                'voice': 'alloy',
+                'model': 'tts-1',
+                'speed': '1.0',
+                'output_format': 'mp3'
+            }
+
+        # 从配置文件读取设置
+        try:
+            openai_config = self.config['OpenAI']
+        except KeyError:
+            openai_config = self.config['DEFAULT'] if 'DEFAULT' in self.config else {}
+
+        self.api_key = openai_config.get('api_key', '')
+        base_url = openai_config.get('base_url', 'https://api.openai.com/v1')
+        self.api_url = f"{base_url.rstrip('/')}/audio/speech"
+        self.default_voice = openai_config.get('voice', 'alloy')
+        self.default_model = openai_config.get('model', 'tts-1')
+        self.default_speed = float(openai_config.get('speed', '1.0'))
+        self.output_format = openai_config.get('output_format', 'mp3')
+
+        # 支持的语音
+        self.supported_voices = {
+            'alloy': '中性平衡的声音',
+            'echo': '深沉有磁性的声音',
+            'fable': '轻快活泼的声音',
+            'onyx': '严肃有力的声音',
+            'nova': '温暖女性的声音',
+            'shimmer': '清晰悦耳的声音'
+        }
+
+        # 支持的模型
+        self.supported_models = {
+            'tts-1': '标准质量 (快速)',
+            'tts-1-hd': '高质量 (较慢)'
+        }
+
+    def generate_speech(self, text, voice=None, model=None, speed=None, output_path=None):
+        """生成语音"""
+        if not self.api_key:
+            return False, "❌ 未配置OpenAI API密钥，请在配置文件中设置api_key"
+
+        # 处理参数
+        selected_voice = voice or self.default_voice
+        selected_model = model or self.default_model
+        selected_speed = speed or self.default_speed
+
+        # 验证参数
+        if selected_voice not in self.supported_voices:
+            return False, f"❌ 不支持的语音: {selected_voice}"
+
+        if selected_model not in self.supported_models:
+            return False, f"❌ 不支持的模型: {selected_model}"
+
+        if not 0.25 <= selected_speed <= 4.0:
+            return False, f"❌ 语速超出范围 (0.25-4.0): {selected_speed}"
+
+        # 准备请求数据
+        payload = {
+            'model': selected_model,
+            'input': text,
+            'voice': selected_voice,
+            'speed': selected_speed,
+            'response_format': 'mp3'
+        }
+
+        try:
+            print(f"🎙️ 使用语音: {selected_voice} ({self.supported_voices[selected_voice]})")
+            print(f"🤖 模型: {selected_model} ({self.supported_models[selected_model]})")
+            print(f"📝 文本内容: {text[:50]}{'...' if len(text) > 50 else ''}")
+            print(f"⚡ 语速: {selected_speed}")
+
+            # 发送请求
+            response = requests.post(
+                self.api_url,
+                headers={
+                    'Authorization': f'Bearer {self.api_key}',
+                    'Content-Type': 'application/json'
+                },
+                data=json.dumps(payload)
+            )
+
+            if response.status_code == 200:
+                # 设置输出路径
+                if not output_path:
+                    output_path = f"{selected_voice}_{len(text)}chars.mp3"
+
+                # 保存音频文件
+                with open(output_path, 'wb') as f:
+                    f.write(response.content)
+
+                return True, output_path
+            else:
+                error_msg = response.json().get('error', {}).get('message', 'Unknown error') if response.headers.get('content-type', '').startswith('application/json') else response.text
+                return False, f"API请求失败 ({response.status_code}): {error_msg}"
+
+        except requests.exceptions.RequestException as e:
+            return False, f"网络请求错误: {str(e)}"
+        except Exception as e:
+            return False, f"生成失败: {str(e)}"
+
+    def list_voices(self):
+        """列出所有支持的语音"""
+        print("🎙️ 支持的OpenAI TTS语音:")
+        for voice, description in self.supported_voices.items():
+            print(f"  {voice} -> {description}")
+        print(f"\n默认语音: {self.default_voice}")
+
+    def list_models(self):
+        """列出支持的模型"""
+        print("🤖 支持的TTS模型:")
+        for model, description in self.supported_models.items():
+            print(f"  {model} -> {description}")
+        print(f"\n默认模型: {self.default_model}")
+
+def main():
+    parser = argparse.ArgumentParser(description='OpenAI-TTS CLI - OpenAI TTS服务')
+    parser.add_argument('text', nargs='?', help='要转换为语音的文本内容')
+    parser.add_argument('--voice', '-v', help='语音选择 (alloy, echo, fable, onyx, nova, shimmer)')
+    parser.add_argument('--model', '-m', help='TTS模型 (tts-1, tts-1-hd)')
+    parser.add_argument('--output', '-o', help='输出文件路径')
+    parser.add_argument('--text-file', '-f', help='从文本文件读取内容')
+    parser.add_argument('--speed', '-s', type=float, help='语速 (0.25-4.0)')
+    parser.add_argument('--list-voices', action='store_true', help='列出可用的语音')
+    parser.add_argument('--list-models', action='store_true', help='列出可用的模型')
+    parser.add_argument('--config', help='配置文件路径')
+
+    args = parser.parse_args()
+
+    # 初始化客户端
+    client = OpenAITTSClient(args.config)
+
+    if args.list_voices:
+        client.list_voices()
+        return
+
+    if args.list_models:
+        client.list_models()
+        return
+
+    # 获取文本内容
+    text = ""
+    if args.text_file:
+        with open(args.text_file, 'r', encoding='utf-8') as f:
+            text = f.read().strip()
+    elif args.text:
+        text = args.text
+    else:
+        print("❌ 请提供文本内容或文本文件")
+        parser.print_help()
+        return
+
+    if not text:
+        print("❌ 文本内容不能为空")
+        return
+
+    # 生成语音
+    success, result = client.generate_speech(
+        text=text,
+        voice=args.voice,
+        model=args.model,
+        speed=args.speed,
+        output_path=args.output
+    )
+
+    if success:
+        print(f"✅ 语音生成成功: {result}")
+    else:
+        print(f"❌ {result}")
+
+if __name__ == '__main__':
+    main()

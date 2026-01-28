@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(python:*)",
+      "Bash(tree:*)",
+      "Bash(dir:*)",
+      "Bash(move:*)",
+      "Bash(copy:*)",
+      "Bash(micromamba env list:*)",
+      "Bash(micromamba run:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
