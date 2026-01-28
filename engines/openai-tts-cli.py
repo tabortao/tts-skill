@@ -13,6 +13,18 @@ import json
 from pathlib import Path
 import configparser
 import time
+import re
+
+def detect_language(text: str) -> str:
+    chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
+    english_pattern = re.compile(r'[a-zA-Z]')
+    chinese_count = len(chinese_pattern.findall(text))
+    english_count = len(english_pattern.findall(text))
+    return 'zh' if chinese_count > english_count else 'en'
+
+
+def t(lang: str, zh: str, en: str) -> str:
+    return zh if lang == 'zh' else en
 
 # Set UTF-8 encoding for console output
 if sys.stdout.encoding != 'utf-8':
@@ -40,7 +52,6 @@ class OpenAITTSClient:
                 break
 
         if not config_loaded:
-            print("⚠️  未找到配置文件，使用默认配置")
             # 默认配置
             self.config['OpenAI'] = {
                 'api_key': '',
@@ -67,18 +78,18 @@ class OpenAITTSClient:
 
         # 支持的语音
         self.supported_voices = {
-            'alloy': '中性平衡的声音',
-            'echo': '深沉有磁性的声音',
-            'fable': '轻快活泼的声音',
-            'onyx': '严肃有力的声音',
-            'nova': '温暖女性的声音',
-            'shimmer': '清晰悦耳的声音'
+            'alloy': {'zh': '中性平衡的声音', 'en': 'Neutral and balanced'},
+            'echo': {'zh': '深沉有磁性的声音', 'en': 'Deep and resonant'},
+            'fable': {'zh': '轻快活泼的声音', 'en': 'Light and lively'},
+            'onyx': {'zh': '严肃有力的声音', 'en': 'Serious and powerful'},
+            'nova': {'zh': '温暖女性的声音', 'en': 'Warm and feminine'},
+            'shimmer': {'zh': '清晰悦耳的声音', 'en': 'Clear and bright'}
         }
 
         # 支持的模型
         self.supported_models = {
-            'tts-1': '标准质量 (快速)',
-            'tts-1-hd': '高质量 (较慢)'
+            'tts-1': {'zh': '标准质量 (快速)', 'en': 'Standard quality (fast)'},
+            'tts-1-hd': {'zh': '高质量 (较慢)', 'en': 'High quality (slower)'}
         }
 
     def generate_speech(self, text, voice=None, model=None, speed=None, output_path=None):
@@ -93,8 +104,10 @@ class OpenAITTSClient:
             value = value.strip(" ._") or "tts"
             return value
 
+        lang = detect_language(text)
+
         if not self.api_key:
-            return False, "❌ 未配置OpenAI API密钥，请在配置文件中设置api_key"
+            return False, t(lang, "❌ 未配置OpenAI API密钥，请在配置文件中设置api_key", "❌ OpenAI API key is not configured. Set api_key in the config file.")
 
         # 处理参数
         selected_voice = voice or self.default_voice
@@ -103,13 +116,13 @@ class OpenAITTSClient:
 
         # 验证参数
         if selected_voice not in self.supported_voices:
-            return False, f"❌ 不支持的语音: {selected_voice}"
+            return False, t(lang, f"❌ 不支持的语音: {selected_voice}", f"❌ Unsupported voice: {selected_voice}")
 
         if selected_model not in self.supported_models:
-            return False, f"❌ 不支持的模型: {selected_model}"
+            return False, t(lang, f"❌ 不支持的模型: {selected_model}", f"❌ Unsupported model: {selected_model}")
 
         if not 0.25 <= selected_speed <= 4.0:
-            return False, f"❌ 语速超出范围 (0.25-4.0): {selected_speed}"
+            return False, t(lang, f"❌ 语速超出范围 (0.25-4.0): {selected_speed}", f"❌ Speed out of range (0.25-4.0): {selected_speed}")
 
         # 准备请求数据
         payload = {
@@ -121,10 +134,12 @@ class OpenAITTSClient:
         }
 
         try:
-            print(f"🎙️ 使用语音: {selected_voice} ({self.supported_voices[selected_voice]})")
-            print(f"🤖 模型: {selected_model} ({self.supported_models[selected_model]})")
-            print(f"📝 文本内容: {text[:50]}{'...' if len(text) > 50 else ''}")
-            print(f"⚡ 语速: {selected_speed}")
+            voice_desc = self.supported_voices[selected_voice]['zh'] if lang == 'zh' else self.supported_voices[selected_voice]['en']
+            model_desc = self.supported_models[selected_model]['zh'] if lang == 'zh' else self.supported_models[selected_model]['en']
+            print(t(lang, f"🎙️ 使用语音: {selected_voice} ({voice_desc})", f"🎙️ Voice: {selected_voice} ({voice_desc})"))
+            print(t(lang, f"🤖 模型: {selected_model} ({model_desc})", f"🤖 Model: {selected_model} ({model_desc})"))
+            print(t(lang, f"📝 文本内容: {text[:50]}{'...' if len(text) > 50 else ''}", f"📝 Text: {text[:50]}{'...' if len(text) > 50 else ''}"))
+            print(t(lang, f"⚡ 语速: {selected_speed}", f"⚡ Speed: {selected_speed}"))
 
             # 发送请求
             response = requests.post(
@@ -153,25 +168,25 @@ class OpenAITTSClient:
                 return True, output_path
             else:
                 error_msg = response.json().get('error', {}).get('message', 'Unknown error') if response.headers.get('content-type', '').startswith('application/json') else response.text
-                return False, f"API请求失败 ({response.status_code}): {error_msg}"
+                return False, t(lang, f"API请求失败 ({response.status_code}): {error_msg}", f"API request failed ({response.status_code}): {error_msg}")
 
         except requests.exceptions.RequestException as e:
-            return False, f"网络请求错误: {str(e)}"
+            return False, t(lang, f"网络请求错误: {str(e)}", f"Network error: {str(e)}")
         except Exception as e:
-            return False, f"生成失败: {str(e)}"
+            return False, t(lang, f"生成失败: {str(e)}", f"Generation failed: {str(e)}")
 
     def list_voices(self):
         """列出所有支持的语音"""
         print("🎙️ 支持的OpenAI TTS语音:")
         for voice, description in self.supported_voices.items():
-            print(f"  {voice} -> {description}")
+            print(f"  {voice} -> {description['zh']}")
         print(f"\n默认语音: {self.default_voice}")
 
     def list_models(self):
         """列出支持的模型"""
         print("🤖 支持的TTS模型:")
         for model, description in self.supported_models.items():
-            print(f"  {model} -> {description}")
+            print(f"  {model} -> {description['zh']}")
         print(f"\n默认模型: {self.default_model}")
 
 def main():
@@ -215,6 +230,8 @@ def main():
         print("❌ 文本内容不能为空")
         return
 
+    lang = detect_language(text)
+
     # 生成语音
     success, result = client.generate_speech(
         text=text,
@@ -225,9 +242,9 @@ def main():
     )
 
     if success:
-        print(f"✅ 语音生成成功: {result}")
+        print(t(lang, f"✅ 语音生成成功: {result}", f"✅ Success: {result}"))
     else:
-        print(f"❌ {result}")
+        print(t(lang, f"❌ {result}", f"❌ {result}"))
 
 if __name__ == '__main__':
     main()

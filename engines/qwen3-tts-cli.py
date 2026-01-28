@@ -38,6 +38,9 @@ def detect_language(text):
     else:
         return 'en'
 
+def t(lang: str, zh: str, en: str) -> str:
+    return zh if lang == 'zh' else en
+
 def load_qwen3_config(config_file: Optional[str] = None) -> dict:
     config = configparser.ConfigParser()
 
@@ -120,22 +123,22 @@ def check_qwen3_environment():
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
-def install_qwen3_environment():
+def install_qwen3_environment(lang: str = 'zh'):
     """安装Qwen3-TTS环境"""
-    print("正在配置Qwen3-TTS环境...")
+    print(t(lang, "正在配置Qwen3-TTS环境...", "Setting up Qwen3-TTS environment..."))
 
     try:
         # 1. 检查Python
         python_check = subprocess.run(['python', '--version'], capture_output=True, text=True)
         if python_check.returncode != 0:
-            print("❌ Python未安装，请先安装Python 3.12或更高版本")
+            print(t(lang, "❌ Python未安装，请先安装Python 3.12或更高版本", "❌ Python is not installed. Please install Python 3.12+ first."))
             return False
 
         # 2. 检查Micromamba
         try:
             subprocess.run(['micromamba', '--version'], capture_output=True, check=True)
         except (subprocess.CalledProcessError, FileNotFoundError):
-            print("正在安装Micromamba...")
+            print(t(lang, "正在安装Micromamba...", "Installing micromamba..."))
             if os.name == 'nt':  # Windows
                 ps_command = "Invoke-Expression ((Invoke-WebRequest -Uri https://micro.mamba.pm/install.ps1 -UseBasicParsing).Content)"
                 subprocess.run(['powershell', '-Command', ps_command], check=True)
@@ -144,25 +147,25 @@ def install_qwen3_environment():
                              stdout=subprocess.PIPE, check=True)
 
         # 3. 创建虚拟环境
-        print("正在创建qwen3-tts虚拟环境...")
+        print(t(lang, "正在创建qwen3-tts虚拟环境...", "Creating micromamba env: qwen3-tts ..."))
         subprocess.run(['micromamba', 'create', '-n', 'qwen3-tts', 'python=3.12', '-y'], check=True)
 
         # 4. 安装Qwen-TTS包
-        print("正在安装Qwen3-TTS核心包...")
+        print(t(lang, "正在安装Qwen3-TTS核心包...", "Installing qwen-tts ..."))
         subprocess.run(['micromamba', 'run', '-n', 'qwen3-tts', 'pip', 'install', '-U', 'qwen-tts'], check=True)
 
         # 5. 安装modelscope
-        print("正在安装modelscope...")
+        print(t(lang, "正在安装modelscope...", "Installing modelscope ..."))
         subprocess.run(['micromamba', 'run', '-n', 'qwen3-tts', 'pip', 'install', '-U', 'modelscope'], check=True)
 
-        print("✅ Qwen3-TTS环境配置完成！")
+        print(t(lang, "✅ Qwen3-TTS环境配置完成！", "✅ Qwen3-TTS environment is ready."))
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ 环境配置失败: {e}")
+        print(t(lang, f"❌ 环境配置失败: {e}", f"❌ Environment setup failed: {e}"))
         return False
 
-def generate_speech_qwen3(reference_audio, reference_text, text, output_path, model_dir: str):
+def generate_speech_qwen3(reference_audio, reference_text, text, output_path, model_dir: str, lang: str):
     """使用Qwen3-TTS生成语音"""
     try:
         # 创建临时Python脚本文件
@@ -185,9 +188,14 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8')
 
+lang = ''' + repr(lang) + '''
+
+def t(zh: str, en: str) -> str:
+    return zh if lang == 'zh' else en
+
 try:
     # 导入必要的库
-    print("📥 加载必要的库...")
+    print(t("📥 加载必要的库...", "📥 Loading required libraries..."))
     from qwen_tts import Qwen3TTSModel
     from modelscope import snapshot_download
     import torchaudio
@@ -199,12 +207,12 @@ try:
     start_time = time.time()
     generation_start = time.time()
 
-    print("⏰ 开始时间: " + time.strftime('%Y-%m-%d %H:%M:%S'))
-    print("📝 输入文本: ''' + text + ''' (" + str(len(''' + repr(text) + ''')) + " 字)")
-    print("🎵 参考音频: " + os.path.basename(''' + repr(reference_audio) + ''') + "...")
+    print(t("⏰ 开始时间: ", "⏰ Start time: ") + time.strftime('%Y-%m-%d %H:%M:%S'))
+    print(t("📝 输入文本: ", "📝 Input text: ") + ''' + text + ''' + " (" + str(len(''' + repr(text) + ''')) + t(" 字)", " chars)"))
+    print(t("🎵 参考音频: ", "🎵 Reference audio: ") + os.path.basename(''' + repr(reference_audio) + ''') + "...")
 
     # 下载模型（如果未下载）
-    print("\\n📥 下载/加载 Qwen3-TTS 模型...")
+    print("\\n" + t("📥 下载/加载 Qwen3-TTS 模型...", "📥 Loading Qwen3-TTS model..."))
     configured_model_dir = Path(''' + repr(model_dir) + ''')
     if not configured_model_dir.is_absolute():
         configured_model_dir = (Path(__file__).resolve().parent / configured_model_dir).resolve()
@@ -216,24 +224,24 @@ try:
             any_file = False
 
         if any_file:
-            print("✅ 检测到本地模型目录，跳过下载: " + str(configured_model_dir))
+            print(t("✅ 检测到本地模型目录，跳过下载: ", "✅ Local model directory detected, skipping download: ") + str(configured_model_dir))
             model_dir = str(configured_model_dir)
         else:
-            print("⚠️  本地模型目录为空，将尝试下载: " + str(configured_model_dir))
+            print(t("⚠️  本地模型目录为空，将尝试下载: ", "⚠️  Local model directory is empty, will try to download: ") + str(configured_model_dir))
             model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(configured_model_dir))
     else:
         try:
             model_dir = snapshot_download('Qwen/Qwen3-TTS-12Hz-0.6B-Base', local_dir=str(configured_model_dir))
         except Exception as e:
-            print("模型下载警告: " + str(e))
+            print(t("模型下载警告: ", "Model download warning: ") + str(e))
             model_dir = str(configured_model_dir)
 
     # 初始化模型
-    print("🔧 初始化模型...")
+    print(t("🔧 初始化模型...", "🔧 Initializing model..."))
     tts = Qwen3TTSModel.from_pretrained(model_dir)
 
     # 读取参考文本
-    print("📖 读取参考文本...")
+    print(t("📖 读取参考文本...", "📖 Reading reference transcript..."))
     ref_text_path = ''' + repr(reference_text) + '''
     with open(ref_text_path, 'r', encoding='utf-8') as f:
         ref_text = f.read().strip()
@@ -242,10 +250,10 @@ try:
     progress_status = {'progress': 0, 'stop_progress': False}
 
     # 创建进度条和预计完成时间显示
-    print("\\n🎵 正在生成语音...")
+    print("\\n" + t("🎵 正在生成语音...", "🎵 Generating audio..."))
     progress_bar = tqdm(
         total=100,
-        desc="语音生成进度",
+        desc=t("语音生成进度", "Generation progress"),
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_noinv_fmt}]",
         ncols=80
     )
@@ -258,7 +266,7 @@ try:
             estimated_total_time = ''' + str(len(text)) + ''' * 0.5  # 假设每字0.5秒
             progress_status['progress'] = min(99, int((elapsed / estimated_total_time) * 100))
 
-            progress_text = "语音生成进度 (" + str(progress_status['progress']) + "%)"
+            progress_text = t("语音生成进度", "Generation progress") + " (" + str(progress_status['progress']) + "%)"
             progress_bar.set_description(progress_text)
 
             progress_bar.update(max(0, progress_status['progress'] - progress_bar.n))
@@ -308,16 +316,16 @@ try:
     time_per_char = generation_time / text_length if text_length > 0 else 0
 
     # 输出结果
-    print("\\n✅ 语音生成成功!")
-    print("📁 输出文件: " + str(output_path))
-    print("🎵 采样率: " + str(sample_rate) + " Hz")
-    print("⏱️  音频长度: " + str(len(wavs[0]) / sample_rate) + " 秒")
+    print("\\n" + t("✅ 语音生成成功!", "✅ Generation succeeded!"))
+    print(t("📁 输出文件: ", "📁 Output file: ") + str(output_path))
+    print(t("🎵 采样率: ", "🎵 Sample rate: ") + str(sample_rate) + " Hz")
+    print(t("⏱️  音频长度: ", "⏱️  Audio duration: ") + str(len(wavs[0]) / sample_rate) + t(" 秒", " seconds"))
 
-    print("\\n📊 性能统计:")
-    print("   总用时: " + str(total_time/60) + " 分钟 (" + str(total_time) + " 秒)")
-    print("   生成用时: " + str(generation_time/60) + " 分钟 (" + str(generation_time) + " 秒)")
-    print("   文本长度: " + str(text_length) + " 字")
-    print("   平均每字用时: " + str(time_per_char) + " 秒")
+    print("\\n" + t("📊 性能统计:", "📊 Stats:"))
+    print(t("   总用时: ", "   Total time: ") + str(total_time/60) + t(" 分钟 (", " min (") + str(total_time) + t(" 秒)", " s)"))
+    print(t("   生成用时: ", "   Generation time: ") + str(generation_time/60) + t(" 分钟 (", " min (") + str(generation_time) + t(" 秒)", " s)"))
+    print(t("   文本长度: ", "   Text length: ") + str(text_length) + t(" 字", " chars"))
+    print(t("   平均每字用时: ", "   Avg time per char: ") + str(time_per_char) + t(" 秒", " s"))
 
 except Exception as e:
     # 确保进度条被正确关闭
@@ -328,7 +336,7 @@ except Exception as e:
         if 'progress_bar' in locals():
             progress_bar.close()
 
-    print("\\n❌ 错误: " + str(e))
+    print("\\n" + t("❌ 错误: ", "❌ Error: ") + str(e))
     import traceback
     traceback.print_exc()
     sys.exit(1)
@@ -357,10 +365,10 @@ except Exception as e:
         if return_code == 0:
             return True, output_path
         else:
-            return False, f"生成失败 (exit={return_code})"
+            return False, t(lang, f"生成失败 (exit={return_code})", f"Generation failed (exit={return_code})")
 
     except Exception as e:
-        return False, f"执行错误: {str(e)}"
+        return False, t(lang, f"执行错误: {str(e)}", f"Execution error: {str(e)}")
 
 def main():
     parser = argparse.ArgumentParser(description='Qwen3-TTS CLI - 千问TTS语音生成工具')
@@ -414,15 +422,17 @@ def main():
         print("ERROR: 文本内容不能为空")
         return
 
+    lang = detect_language(text)
+
     # 检测语言并查找音色
     reference_audio, reference_text = find_voice_reference(voice_keyword, assets_dir)
 
     if not reference_audio or not reference_text:
-        print(f"ERROR: 找不到匹配的音色文件: {voice_keyword}")
+        print(t(lang, f"ERROR: 找不到匹配的音色文件: {voice_keyword}", f"ERROR: Cannot find matching voice files: {voice_keyword}"))
         return
 
-    print(f"使用音色: {Path(reference_audio).stem}")
-    print(f"文本内容: {text[:50]}{'...' if len(text) > 50 else ''}")
+    print(t(lang, f"使用音色: {Path(reference_audio).stem}", f"Voice: {Path(reference_audio).stem}"))
+    print(t(lang, f"文本内容: {text[:50]}{'...' if len(text) > 50 else ''}", f"Text: {text[:50]}{'...' if len(text) > 50 else ''}"))
 
     # 设置输出路径
     if not args.output:
@@ -442,24 +452,24 @@ def main():
 
     # 检查环境
     if not check_qwen3_environment():
-        print("WARNING: Qwen3-TTS环境未配置，正在安装...")
-        if not install_qwen3_environment():
-            print("ERROR: 环境配置失败，请手动配置")
+        print(t(lang, "WARNING: Qwen3-TTS环境未配置，正在安装...", "WARNING: Qwen3-TTS environment is not set up. Installing..."))
+        if not install_qwen3_environment(lang=lang):
+            print(t(lang, "ERROR: 环境配置失败，请手动配置", "ERROR: Environment setup failed. Please install manually."))
             return
 
     # 生成语音
-    success, result = generate_speech_qwen3(reference_audio, reference_text, text, output_path, model_dir=model_dir)
+    success, result = generate_speech_qwen3(reference_audio, reference_text, text, output_path, model_dir=model_dir, lang=lang)
 
     if success:
-        print(f"SUCCESS: 语音生成成功: {result}")
+        print(t(lang, f"SUCCESS: 语音生成成功: {result}", f"SUCCESS: Generated: {result}"))
     else:
         # Handle Unicode characters in error message
         try:
-            print(f"ERROR: 生成失败: {result}")
+            print(t(lang, f"ERROR: 生成失败: {result}", f"ERROR: Failed: {result}"))
         except UnicodeEncodeError:
             # Fallback: encode with error handling
             safe_result = result.encode('gbk', errors='replace').decode('gbk')
-            print(f"ERROR: 生成失败: {safe_result}")
+            print(t(lang, f"ERROR: 生成失败: {safe_result}", f"ERROR: Failed: {safe_result}"))
 
 if __name__ == '__main__':
     main()

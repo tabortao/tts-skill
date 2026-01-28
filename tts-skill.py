@@ -19,6 +19,17 @@ if sys.stdout.encoding != 'utf-8':
 if sys.stderr.encoding != 'utf-8':
     sys.stderr.reconfigure(encoding='utf-8')
 
+def detect_language(text: str) -> str:
+    chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
+    english_pattern = re.compile(r'[a-zA-Z]')
+    chinese_count = len(chinese_pattern.findall(text))
+    english_count = len(english_pattern.findall(text))
+    return 'zh' if chinese_count > english_count else 'en'
+
+
+def t(lang: str, zh: str, en: str) -> str:
+    return zh if lang == 'zh' else en
+
 class TTSSkill:
     def __init__(self):
         self.engines_dir = Path(__file__).parent / 'engines'
@@ -136,23 +147,23 @@ TTS-Skill - 多引擎文本转语音技能
         for voice, description in openai_voices.items():
             print(f"  - {voice} -> {description}")
 
-    def run_engine(self, engine, args):
+    def run_engine(self, engine, args, lang='zh'):
         """运行指定的TTS引擎"""
         if engine not in self.supported_engines:
-            print(f"ERROR: 不支持的引擎: {engine}")
-            print("可用引擎:", ", ".join(self.supported_engines.keys()))
+            print(t(lang, f"ERROR: 不支持的引擎: {engine}", f"ERROR: Unsupported engine: {engine}"))
+            print(t(lang, "可用引擎:", "Available engines:"), ", ".join(self.supported_engines.keys()))
             return False
 
         engine_script = self.engines_dir / self.supported_engines[engine]
         if not engine_script.exists():
-            print(f"ERROR: 引擎脚本不存在: {engine_script}")
+            print(t(lang, f"ERROR: 引擎脚本不存在: {engine_script}", f"ERROR: Engine script not found: {engine_script}"))
             return False
 
         try:
             # 构建命令
             cmd = [sys.executable, str(engine_script)] + args
 
-            print(f"启动 {engine} 引擎...")
+            print(t(lang, f"启动 {engine} 引擎...", f"Starting engine: {engine} ..."))
             result = subprocess.run(cmd, cwd=str(self.engines_dir),
                                   encoding='utf-8', errors='replace',
                                   env={**os.environ, 'PYTHONIOENCODING': 'utf-8', 'PYTHONUTF8': '1'})
@@ -160,10 +171,10 @@ TTS-Skill - 多引擎文本转语音技能
             return result.returncode == 0
 
         except subprocess.CalledProcessError as e:
-            print(f"ERROR: 引擎执行失败: {e}")
+            print(t(lang, f"ERROR: 引擎执行失败: {e}", f"ERROR: Engine execution failed: {e}"))
             return False
         except Exception as e:
-            print(f"ERROR: 执行错误: {e}")
+            print(t(lang, f"ERROR: 执行错误: {e}", f"ERROR: Execution error: {e}"))
             return False
 
     def install_qwen3_environment(self):
@@ -247,6 +258,8 @@ def main():
     elif args.text:
         input_text = ' '.join(args.text).strip()
 
+    lang = detect_language(input_text) if input_text else 'zh'
+
     # 构建引擎参数
     engine_args = []
 
@@ -259,7 +272,7 @@ def main():
             default_filename = skill.generate_output_filename(input_text)
             default_output_path = skill.output_dir / default_filename
             engine_args.extend(['--output', str(default_output_path)])
-            print(f"📁 默认输出路径: {default_output_path}")
+            print(t(lang, f"📁 默认输出路径: {default_output_path}", f"📁 Default output path: {default_output_path}"))
         else:
             engine_args.extend(['--output', args.output])
     else:
@@ -276,27 +289,27 @@ def main():
 
     # 运行引擎
     start_time = time.perf_counter()
-    success = skill.run_engine(args.engine, engine_args)
+    success = skill.run_engine(args.engine, engine_args, lang=lang)
     total_seconds = time.perf_counter() - start_time
 
     if args.engine == 'qwen3-tts' and input_text:
         chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', input_text))
         total_chars = len(input_text)
         basis = chinese_chars if chinese_chars > 0 else total_chars
-        basis_label = "汉字" if chinese_chars > 0 else "字符"
+        basis_label = t(lang, "汉字", "Chinese characters") if chinese_chars > 0 else t(lang, "字符", "characters")
         per_unit = (total_seconds / basis) if basis > 0 else 0.0
-        print("\n📊 运行统计:")
-        print(f"   总用时: {total_seconds:.2f} 秒")
+        print(t(lang, "\n📊 运行统计:", "\n📊 Stats:"))
+        print(t(lang, f"   总用时: {total_seconds:.2f} 秒", f"   Total time: {total_seconds:.2f} s"))
         if chinese_chars > 0:
-            print(f"   汉字数: {chinese_chars}")
-        print(f"   字符数: {total_chars}")
-        print(f"   平均每{basis_label}耗时: {per_unit:.3f} 秒")
+            print(t(lang, f"   汉字数: {chinese_chars}", f"   Chinese chars: {chinese_chars}"))
+        print(t(lang, f"   字符数: {total_chars}", f"   Total chars: {total_chars}"))
+        print(t(lang, f"   平均每{basis_label}耗时: {per_unit:.3f} 秒", f"   Avg per {basis_label}: {per_unit:.3f} s"))
 
     if success:
-        print(f"\n✅ {args.engine} 引擎执行成功！")
-        print(f"📂 输出目录: {skill.output_dir}")
+        print(t(lang, f"\n✅ {args.engine} 引擎执行成功！", f"\n✅ Engine succeeded: {args.engine}"))
+        print(t(lang, f"📂 输出目录: {skill.output_dir}", f"📂 Output dir: {skill.output_dir}"))
     else:
-        print(f"❌ {args.engine} 引擎执行失败")
+        print(t(lang, f"❌ {args.engine} 引擎执行失败", f"❌ Engine failed: {args.engine}"))
         sys.exit(1)
 
 if __name__ == '__main__':

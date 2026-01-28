@@ -14,6 +14,17 @@ from pathlib import Path
 import configparser
 import re
 
+def detect_language(text: str) -> str:
+    chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
+    english_pattern = re.compile(r'[a-zA-Z]')
+    chinese_count = len(chinese_pattern.findall(text))
+    english_count = len(english_pattern.findall(text))
+    return 'zh' if chinese_count > english_count else 'en'
+
+
+def t(lang: str, zh: str, en: str) -> str:
+    return zh if lang == 'zh' else en
+
 class EdgeTTSClient:
     def __init__(self, config_file=None):
         self.config = configparser.ConfigParser()
@@ -106,6 +117,8 @@ class EdgeTTSClient:
             value = value.strip(" ._")
             return value or "tts"
 
+        lang = detect_language(text)
+
         # 处理参数
         if voice:
             selected_voice = self.find_voice_by_keyword(voice)
@@ -126,9 +139,9 @@ class EdgeTTSClient:
         }
 
         try:
-            print(f"使用语音: {selected_voice}")
-            print(f"文本内容: {text[:50]}{'...' if len(text) > 50 else ''}")
-            print(f"参数: 语速={selected_speed}, 音调={selected_pitch}, 风格={selected_style}")
+            print(t(lang, f"使用语音: {selected_voice}", f"Voice: {selected_voice}"))
+            print(t(lang, f"文本内容: {text[:50]}{'...' if len(text) > 50 else ''}", f"Text: {text[:50]}{'...' if len(text) > 50 else ''}"))
+            print(t(lang, f"参数: 语速={selected_speed}, 音调={selected_pitch}, 风格={selected_style}", f"Params: speed={selected_speed}, pitch={selected_pitch}, style={selected_style}"))
 
             # 发送请求
             response = requests.post(
@@ -165,12 +178,12 @@ class EdgeTTSClient:
                 return True, str(output_path)
             else:
                 error_msg = response.json().get('error', 'Unknown error') if response.headers.get('content-type', '').startswith('application/json') else response.text
-                return False, f"API请求失败 ({response.status_code}): {error_msg}"
+                return False, t(lang, f"API请求失败 ({response.status_code}): {error_msg}", f"API request failed ({response.status_code}): {error_msg}")
 
         except requests.exceptions.RequestException as e:
-            return False, f"网络请求错误: {str(e)}"
+            return False, t(lang, f"网络请求错误: {str(e)}", f"Network error: {str(e)}")
         except Exception as e:
-            return False, f"生成失败: {str(e)}"
+            return False, t(lang, f"生成失败: {str(e)}", f"Generation failed: {str(e)}")
 
     def list_voices(self):
         """列出所有支持的语音"""
@@ -237,6 +250,8 @@ def main():
         print("❌ 文本内容不能为空")
         return
 
+    lang = detect_language(text)
+
     # 生成语音
     success, result = client.generate_speech(
         text=text,
@@ -248,9 +263,9 @@ def main():
     )
 
     if success:
-        print(f"语音生成成功: {result}")
+        print(t(lang, f"语音生成成功: {result}", f"Success: {result}"))
     else:
-        print(f"生成失败: {result}")
+        print(t(lang, f"生成失败: {result}", f"Failed: {result}"))
 
 if __name__ == '__main__':
     main()
