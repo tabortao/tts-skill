@@ -83,6 +83,16 @@ class OpenAITTSClient:
 
     def generate_speech(self, text, voice=None, model=None, speed=None, output_path=None):
         """生成语音"""
+        def sanitize_filename_part(value: str) -> str:
+            if not value:
+                return "tts"
+            value = value.strip().replace("\n", " ").replace("\r", " ")
+            value = "_".join(value.split())
+            invalid_chars = '<>:"/\\|?*'
+            value = "".join(c for c in value if c not in invalid_chars)
+            value = value.strip(" ._") or "tts"
+            return value
+
         if not self.api_key:
             return False, "❌ 未配置OpenAI API密钥，请在配置文件中设置api_key"
 
@@ -129,7 +139,12 @@ class OpenAITTSClient:
             if response.status_code == 200:
                 # 设置输出路径
                 if not output_path:
-                    output_path = f"{selected_voice}_{len(text)}chars.mp3"
+                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    prefix = sanitize_filename_part(text[:6] if len(text) >= 6 else text)
+                    filename = f"{timestamp}_{prefix}.mp3"
+                    output_dir = Path(__file__).parent.parent / 'output'
+                    output_dir.mkdir(exist_ok=True)
+                    output_path = str(output_dir / filename)
 
                 # 保存音频文件
                 with open(output_path, 'wb') as f:

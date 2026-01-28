@@ -143,7 +143,7 @@ class EdgeTTSClient:
                 if not output_path:
                     # 生成默认文件名：日期+文本前6个字
                     import time
-                    date_str = time.strftime("%Y%m%d")
+                    date_str = time.strftime("%Y%m%d_%H%M%S")
                     prefix = text[:6] if len(text) >= 6 else text
                     prefix = sanitize_filename_part(prefix)
                     filename = f"{date_str}_{prefix}.mp3"

@@ -10,6 +10,8 @@ import sys
 import argparse
 import subprocess
 from pathlib import Path
+import time
+import re
 
 # Set UTF-8 encoding for console output
 if sys.stdout.encoding != 'utf-8':
@@ -33,8 +35,7 @@ class TTSSkill:
 
     def generate_output_filename(self, text, extension='wav'):
         """生成输出文件名：日期+文本前6个字"""
-        import time
-        timestamp = time.strftime("%Y%m%d")
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
 
         # 获取输入文本的前6个字
         prefix = text[:6] if len(text) >= 6 else text
@@ -274,7 +275,22 @@ def main():
     engine_args.extend(unknown)
 
     # 运行引擎
+    start_time = time.perf_counter()
     success = skill.run_engine(args.engine, engine_args)
+    total_seconds = time.perf_counter() - start_time
+
+    if args.engine == 'qwen3-tts' and input_text:
+        chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', input_text))
+        total_chars = len(input_text)
+        basis = chinese_chars if chinese_chars > 0 else total_chars
+        basis_label = "汉字" if chinese_chars > 0 else "字符"
+        per_unit = (total_seconds / basis) if basis > 0 else 0.0
+        print("\n📊 运行统计:")
+        print(f"   总用时: {total_seconds:.2f} 秒")
+        if chinese_chars > 0:
+            print(f"   汉字数: {chinese_chars}")
+        print(f"   字符数: {total_chars}")
+        print(f"   平均每{basis_label}耗时: {per_unit:.3f} 秒")
 
     if success:
         print(f"\n✅ {args.engine} 引擎执行成功！")

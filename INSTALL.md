@@ -1,61 +1,60 @@
-# 🔧 TTS-Skill 安装指南
+# 🔧 TTS-Skill Installation Guide
 
-## 📋 系统要求
+## Requirements
 
-- **操作系统**: Windows 10+, macOS 10.15+, Linux
-- **Python**: 3.8+
-- **内存**: 4GB+ RAM
-- **存储**: 10GB+ 可用空间
-- **网络**: 需要网络连接 (VoiceCraft和OpenAI需要)
-- **GPU**: 推荐4GB+显存 (仅Qwen3-TTS需要)
+- **OS**: Windows 10+, macOS 10.15+, Linux
+- **Python**: 3.8+ (Qwen3-TTS runtime requires Python 3.12 via micromamba env)
+- **RAM**: 4GB+ (8GB+ recommended for local cloning)
+- **Disk**: 10GB+ free space (models take space)
+- **Network**: Required for VoiceCraft and OpenAI; also used to download Qwen models
+- **GPU**: Recommended (4GB+ VRAM) for Qwen3-TTS
 
-## 🚀 快速安装
+## Quick Start
 
-### 1. 基础环境
+### 1) Get the project
 
 ```bash
-# 克隆项目
 git clone <your-repo>/tts-skill.git
 cd tts-skill
-
-# 验证Python版本
-python --version  # 需要3.8+
+python --version
 ```
 
-### 2. Qwen3-TTS 环境配置
+### 2) Install Qwen3-TTS environment (optional, for local voice cloning)
 
 ```bash
-# 使用自动安装脚本
 python tts-skill.py --install
+```
 
-# 或者手动安装
+You can also run the engine installer directly:
+
+```bash
 python engines/qwen3-tts-cli.py --install
 ```
 
-### 3. 验证安装
+### 3) Verify
 
 ```bash
-# 检查所有引擎
 python tts-skill.py --list-engines
-
-# 查看可用音色
 python tts-skill.py --list-voices
-
-# 显示帮助
 python tts-skill.py --help
 ```
 
-## 🔧 详细配置
+## Output Convention (Default)
 
-### Qwen3-TTS 手动配置
+If you do not pass `--output`, all engines write to `output/` by default.
 
-Qwen3-TTS支持通过配置文件自定义设置。首先创建配置文件：
+- Filename pattern: `YYYYMMDD_HHMMSS_<first-6-chars>.<ext>`
+- Examples:
+  - `output/20260128_153012_胜利在呼唤.wav`
+  - `output/20260128_153012_Hello_.mp3`
 
-```bash
-# 创建或编辑配置文件
-nano engines/qwen3-tts.config
+## Engine Configuration
 
-# 主要配置项示例:
+### Qwen3-TTS (Local Voice Cloning)
+
+Qwen3-TTS can be configured via `engines/qwen3-tts.config`:
+
+```ini
 [Qwen3-TTS]
 model_dir = ./Qwen3-TTS-12Hz-0.6B-Base
 default_voice = 赵信
@@ -63,79 +62,22 @@ output_format = wav
 device = auto
 ```
 
-#### Windows 用户
+On Windows, Qwen3-TTS uses a micromamba environment named `qwen3-tts`. The installer will try to set this up automatically.
 
-```powershell
-# 1. 安装Python 3.12+
-# 下载地址: https://www.python.org/downloads/
-
-# 2. 安装Micromamba
-Invoke-Expression ((Invoke-WebRequest -Uri https://micro.mamba.pm/install.ps1 -UseBasicParsing).Content)
-
-# 3. 创建虚拟环境
-micromamba create -n qwen3-tts python=3.12 -y
-
-# 4. 激活环境
-micromamba activate qwen3-tts
-
-# 5. 安装依赖
-pip install -U qwen-tts modelscope
-
-# 6. 下载模型
-modelscope download --model Qwen/Qwen3-TTS-12Hz-0.6B-Base --local_dir ./engines/Qwen3-TTS-12Hz-0.6B-Base
-```
-
-#### Linux/macOS 用户
+### VoiceCraft (Edge TTS via Online API)
 
 ```bash
-# 1. 安装Python 3.12+
-# Ubuntu/Debian: sudo apt install python3.12
-# macOS: brew install python@3.12
-
-# 2. 安装Micromamba
-curl -Ls https://micro.mamba.pm/install.sh | sh
-
-# 3. 创建虚拟环境
-micromamba create -n qwen3-tts python=3.12 -y
-
-# 4. 激活环境
-micromamba activate qwen3-tts
-
-# 5. 安装依赖
-pip install -U qwen-tts modelscope
-
-# 6. 下载模型
-modelscope download --model Qwen/Qwen3-TTS-12Hz-0.6B-Base --local_dir ./engines/Qwen3-TTS-12Hz-0.6B-Base
-```
-
-### VoiceCraft 配置
-
-VoiceCraft使用在线API，无需特殊配置：
-
-```bash
-# 查看可用语音
 python engines/edge-tts-cli.py --list-voices
-
-# 查看语音风格
 python engines/edge-tts-cli.py --list-styles
-
-# 修改配置文件 (可选)
-nano engines/edge-tts.config
 ```
 
-### OpenAI TTS 配置
+Optional config file: `engines/edge-tts.config`
 
-1. **获取API密钥**
-   - 访问 [OpenAI Platform](https://platform.openai.com/)
-   - 创建账户并获取API密钥
+### OpenAI TTS
 
-2. **创建配置文件**
+Create/edit `engines/openai-tts.config`:
 
-```bash
-# 创建配置文件 (如果不存在)
-nano engines/openai-tts.config
-
-# 编辑配置文件
+```ini
 [OpenAI]
 api_key = your_openai_api_key_here
 base_url = https://api.openai.com/v1
@@ -144,188 +86,34 @@ model = tts-1
 speed = 1.0
 ```
 
-## 🎯 首次使用测试
+## First-run Tests
 
-### 测试 VoiceCraft (推荐首次测试)
+### VoiceCraft
 
 ```bash
-# 基本测试
-python tts-skill.py edge-tts "你好，世界！" --voice xiaoxiao
-
-# 指定输出文件
-python tts-skill.py edge-tts "测试文本" --voice yunxi --output test.mp3
-
-# 调整参数
-python tts-skill.py edge-tts "重要通知" --voice xiaoyan --speed 0.8 --style serious
+python tts-skill.py edge-tts "Hello from VoiceCraft" --voice xiaoxiao
 ```
 
-### 测试 Qwen3-TTS
+### Qwen3-TTS
 
 ```bash
-# 确保环境已安装
-python tts-skill.py --install
-
-# 使用默认音色
 python tts-skill.py qwen3-tts "德玛西亚！" --voice 赵信
-
-# 使用其他音色
-python tts-skill.py qwen3-tts "测试文本" --voice 寒冰射手
+python tts-skill.py qwen3-tts --text-file "input/text.txt" --voice 寒冰射手
 ```
 
-### 测试 OpenAI TTS
+### OpenAI TTS
 
 ```bash
-# 确保已配置API密钥
 python tts-skill.py openai-tts "Hello World" --voice alloy
-
-# 使用高质量模型
 python tts-skill.py openai-tts "测试文本" --voice nova --model tts-1-hd
 ```
 
-## 🔧 故障排除
+## Troubleshooting
 
-### 常见问题
+- **Qwen3-TTS install fails**: verify micromamba is available, and networking is working for model downloads.
+- **VoiceCraft timeout**: check network connectivity; update the API endpoint in `engines/edge-tts.config` if needed.
+- **OpenAI auth fails**: verify `api_key`, and account permissions/billing status.
 
-#### Q: Python版本不兼容？
-A: 确保使用Python 3.8-3.12版本，Qwen3-TTS需要Python 3.12。
+## Chinese Docs
 
-#### Q: Micromamba安装失败？
-A: 尝试手动安装：
-- Windows: 使用PowerShell运行安装脚本
-- Linux/macOS: 使用curl下载安装脚本
-
-#### Q: Qwen3-TTS模型下载失败？
-A: 检查网络连接，可能需要科学上网，或者手动下载模型。可以在配置文件中指定自定义模型路径。
-
-#### Q: Qwen3-TTS配置文件如何设置？
-A: 编辑 `engines/qwen3-tts.config` 文件，主要配置 `model_dir` 指向您的模型目录。
-
-#### Q: OpenAI配置文件如何设置？
-A: 编辑 `engines/openai-tts.config` 文件，主要配置 `api_key` 为您的OpenAI API密钥。
-
-#### Q: VoiceCraft连接超时？
-A: 检查网络连接，尝试使用备用API端点。
-
-#### Q: OpenAI认证失败？
-A: 确认API密钥正确，检查账户余额和权限。
-
-### 调试信息
-
-```bash
-# 启用详细输出
-python engines/qwen3-tts-cli.py "测试" --voice 赵信 --verbose
-
-# 检查Python路径
-which python
-python --version
-
-# 检查虚拟环境
-micromamba env list
-micromamba activate qwen3-tts
-pip list | grep qwen
-```
-
-## 📁 项目结构说明
-
-```
-tts-skill/
-├── tts-skill.py              # 主入口脚本
-├── SKILL.md                  # 技能详细说明
-├── README.md                 # 项目说明
-├── INSTALL.md                # 安装指南 (本文件)
-├── engines/                  # TTS引擎目录
-│   ├── qwen3-tts-cli.py     # 千问TTS引擎
-│   ├── edge-tts-cli.py      # VoiceCraft引擎
-│   ├── openai-tts-cli.py    # OpenAI TTS引擎
-│   ├── qwen3-tts.config     # Qwen3-TTS配置文件
-│   ├── edge-tts.config      # Edge-TTS配置文件
-│   └── openai-tts.config    # OpenAI TTS配置文件
-│   └── Qwen3-TTS-12Hz-0.6B-Base/  # Qwen3-TTS模型目录 (会被.gitignore忽略)
-├── assets/                   # 参考音色目录
-│   ├── zh/                  # 中文音色
-│   │   ├── 赵信.mp3
-│   │   ├── 赵信.txt
-│   │   ├── 寒冰射手.mp3
-│   │   └── 寒冰射手.txt
-│   └── en/                  # 英文音色
-│       ├── narrator.txt
-│       └── teacher.txt
-├── output/                   # 输出目录
-└── reference/               # 参考文档
-    └── tts-skill设计方案.md
-```
-
-## 🚀 性能优化
-
-### Qwen3-TTS 优化
-
-```bash
-# 安装FlashAttention减少内存使用
-pip install -U flash-attn --no-build-isolation
-
-# 使用CPU模式 (低配电脑)
-# 在代码中设置 device = "cpu"
-```
-
-### 网络优化
-
-```bash
-# VoiceCraft备用API端点
-api_url = https://backup-tts-api.com/v1/audio/speech
-
-# 增加超时时间
-# 在代码中设置 timeout = 30
-```
-
-## 🔄 更新维护
-
-### 更新引擎
-
-```bash
-# 更新Qwen-TTS包
-micromamba activate qwen3-tts
-pip install -U qwen-tts
-
-# 更新其他依赖
-pip install -U modelscope requests
-```
-
-### 添加新音色
-
-1. **准备参考音频**
-   - 格式: MP3或WAV
-   - 长度: 10-60秒
-   - 质量: 清晰无噪音
-
-2. **准备参考文本**
-   - 创建同名TXT文件
-   - 内容与音频对应
-   - UTF-8编码
-
-3. **放置文件**
-   ```
-   assets/zh/新音色.mp3
-   assets/zh/新音色.txt
-   ```
-
-## 📞 获取帮助
-
-### 在线资源
-- **文档**: 查看项目中的SKILL.md和README.md
-- **问题**: 提交GitHub Issue
-- **讨论**: 加入项目Discussions
-
-### 联系支持
-- 📧 邮箱: support@example.com
-- 🐛 Bug报告: GitHub Issues
-- 💬 功能建议: GitHub Discussions
-
-## 📄 许可证
-
-本项目采用MIT许可证，详见LICENSE文件。
-
----
-
-**🔧 安装完成！** 现在您可以开始使用TTS-Skill的强大功能了。
-
-*如有问题，请参考故障排除部分或联系技术支持。*
+- See [INSTALL.zh-CN.md](INSTALL.zh-CN.md) for the original Chinese version.

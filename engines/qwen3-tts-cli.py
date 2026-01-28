@@ -287,11 +287,11 @@ except Exception as e:
         env = os.environ.copy()
         env['PYTHONIOENCODING'] = 'utf-8'
         env['PYTHONUTF8'] = '1'
+        env['PYTHONUNBUFFERED'] = '1'
 
-        result = subprocess.run([
-            'micromamba', 'run', '-n', 'qwen3-tts', 'python', str(temp_script)
-        ], capture_output=True, text=True, encoding='utf-8', errors='replace',
-           env=env, cwd=os.getcwd())
+        cmd = ['micromamba', 'run', '-n', 'qwen3-tts', 'python', str(temp_script)]
+        result = subprocess.run(cmd, env=env, cwd=os.getcwd())
+        return_code = result.returncode
 
         # 清理临时文件
         try:
@@ -299,10 +299,10 @@ except Exception as e:
         except:
             pass
 
-        if result.returncode == 0:
+        if return_code == 0:
             return True, output_path
         else:
-            return False, f"生成失败: {result.stderr}"
+            return False, f"生成失败 (exit={return_code})"
 
     except Exception as e:
         return False, f"执行错误: {str(e)}"
