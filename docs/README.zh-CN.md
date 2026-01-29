@@ -278,3 +278,7 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 如果这个项目对你有帮助，请给个⭐️支持！
 
 [![Star History Chart](https://api.star-history.com/svg?repos=your-repo/tts-skill&type=Date)](https://star-history.com/#your-repo/tts-skill&Date)
+
+## 🤝 致谢
+
+本项目使用了 [https://github.com/wangwangit/tts](https://github.com/wangwangit/tts) 的组件。特别感谢原作者对TTS社区的贡献。

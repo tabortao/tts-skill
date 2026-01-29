@@ -70,3 +70,7 @@ Create `engines/openai-tts.config` and set `api_key`.
 - Installation: [INSTALL.md](INSTALL.md)
 - Skill spec: [SKILL.md](SKILL.md)
 - Chinese README: [README.zh-CN.md](README.zh-CN.md)
+
+## Acknowledgements
+
+This project uses components from [https://github.com/wangwangit/tts](https://github.com/wangwangit/tts). Special thanks to the original authors for their contributions to the TTS community.
